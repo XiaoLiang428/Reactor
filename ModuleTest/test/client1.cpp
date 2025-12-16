@@ -62,7 +62,6 @@ int main() {
             continue;
         }
         printf("RECEIVE RESPONSE:\n%s\n", buffer);
-        sleep(10);
     }
     sock.Close();
     return 0;

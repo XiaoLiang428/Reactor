@@ -11,6 +11,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <signal.h>
@@ -23,7 +24,6 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <vector>
-#include <iostream>
 
 class Socket {
 private:
@@ -430,7 +430,7 @@ public:
             if (_close_cb)
                 _close_cb();
         }
-        if( _event_cb) {
+        if (_event_cb) {
             _event_cb();
         }
     }
@@ -669,10 +669,7 @@ public:
     }
     void OnTime() {
         int times = ReadTimeFd();
-        for(int i = 0;i < times; ++i)
-        {
-            RunTimerTask();
-        }
+        for (int i = 0; i < times; ++i) { RunTimerTask(); }
     }
 };
 
@@ -745,11 +742,9 @@ public:
             std::unique_lock<std::mutex> lock(_mutex);
             tasks.swap(_task);
         }
-        if(tasks.empty())
+        if (tasks.empty())
             return;
-        for (const Functor &task : tasks) { 
-            task(); 
-        }
+        for (const Functor &task : tasks) { task(); }
     }
     void RunInLoop(const Functor cb) {
         if (IsInLoop()) {
@@ -762,7 +757,6 @@ public:
         {
             std::unique_lock<std::mutex> lock(_mutex);
             _task.push_back(cb);
-
         }
         // 有可能因为没有事件触发导致epoll一直等待，因此我们需要使用EventFd唤醒它
         // 使用EventFd写入数据来触发可读事件
@@ -784,7 +778,7 @@ public:
     void TimerAdd(uint64_t id, uint32_t delay, const TaskFunc &cb) { _time_wheel.TimerAdd(id, delay, cb); }
     void TimerRefresh(uint64_t id) { _time_wheel.TimerRefresh(id); }
     void TimerCancel(uint64_t id) { _time_wheel.TimerCancel(id); }
-    bool TimerCheck(uint64_t id) { return _time_wheel.TimerCheck(id);}
+    bool TimerCheck(uint64_t id) { return _time_wheel.TimerCheck(id); }
     bool HasTimer(uint64_t id) { return _time_wheel.TimerCheck(id); }
 };
 
@@ -894,7 +888,7 @@ private:
             _loop->TimerCancel(_timer_id);
         if (_close_cb)
             _close_cb(shared_from_this());
-        if (_server_close_cb) {// _server_close_cb
+        if (_server_close_cb) {  // _server_close_cb
             _server_close_cb(shared_from_this());
         }
         // 在这里打印
@@ -974,9 +968,7 @@ public:
     void SetMessageCallback(const MessageCallback &cb) { _msg_cb = cb; }
     void SetCloseCallback(const CloseCallback &cb) { _close_cb = cb; }
     void SetAnyEventCallback(const AnyEventCallback &cb) { _event_cb = cb; }
-    void SetSvrCloseCallback(const CloseCallback &cb) {
-        _server_close_cb = cb; 
-    }
+    void SetSvrCloseCallback(const CloseCallback &cb) { _server_close_cb = cb; }
     void Established() { _loop->RunInLoop(std::bind(&Connection::EstablishInLoop, this)); }
     void Send(const char *data, size_t len) {
         _loop->RunInLoop(std::bind(&Connection::SendInLoop, this, data, len));
@@ -985,11 +977,8 @@ public:
     {
         _loop->RunInLoop(std::bind(&Connection::ShutdownInLoop, this));
     }
-    //确保连接释后事件事件不在会被触发，防止前面的事件为定时器事件然后导致连接被释放从而影响后面连接事件触发时候访问非法内存
-    void Release()
-    {
-        _loop->QueueInLoop(std::bind(&Connection::ReleaseInLoop, this));
-    }
+    // 确保连接释后事件事件不在会被触发，防止前面的事件为定时器事件然后导致连接被释放从而影响后面连接事件触发时候访问非法内存
+    void Release() { _loop->QueueInLoop(std::bind(&Connection::ReleaseInLoop, this)); }
     void EnableInactiveRelease(int sec) {
         _loop->RunInLoop(std::bind(&Connection::EnableInactiveReleaseInLoop, this, sec));
     }
@@ -1072,9 +1061,7 @@ public:
 public:
     LoopThread()
             : _loop(nullptr)
-            , _thread(std::thread(&LoopThread::ThreadFunc, this)) 
-            {
-            }
+            , _thread(std::thread(&LoopThread::ThreadFunc, this)) {}
     EventLoop *GetLoop() {
         EventLoop *loop = nullptr;
         {
@@ -1112,8 +1099,7 @@ public:
     }
     // RR轮转获取下一个从属线程
     EventLoop *GetNextLoop() {
-        if (_thread_count == 0)
-        {
+        if (_thread_count == 0) {
             return _base_loop;
         }
         _next_idx = (_next_idx + 1) % _thread_count;
@@ -1145,6 +1131,10 @@ private:
     using Functor = std::function<void()>;
 
 private:
+    void RunAfterInLoop(const Functor &cb, uint32_t delay) {
+        _next_id++;
+        _base_loop.TimerAdd(0, delay, cb);
+    }
     void HandleNewConnection(int sockfd) {
         uint64_t conn_id = _next_id++;
         EventLoop *loop = _pool.GetNextLoop();
@@ -1161,8 +1151,7 @@ private:
         //_conns.insert(make_pair(conn_id, conn));
     }
     void RemoveConnectionInLoop(const PTRConnection &conn) {
-
-        LOG_DEBUG("RemoveConnectionInLoop called"); 
+        LOG_DEBUG("RemoveConnectionInLoop called");
         uint64_t id = conn->GetConnId();
         if (_conns.find(id) == _conns.end()) {
             return;
@@ -1170,7 +1159,7 @@ private:
         _conns.erase(id);
     }
     void RemoveConnection(const PTRConnection &conn) {
-        LOG_DEBUG("RemoveConnection called"); 
+        LOG_DEBUG("RemoveConnection called");
         _base_loop.RunInLoop(std::bind(&TcpServer::RemoveConnectionInLoop, this, conn));
     }
 
@@ -1203,10 +1192,9 @@ public:
         _enable_inactive_release = true;
     }
     // 添加定时任务
-    //  void RunAfter(const Functor& cb,uint32_t delay)
-    //  {
-    //      _base_loop.RunInLoop(std::bind(&TcpServer::RunAfterInLoop,this,cb,delay));
-    //  }
+    void RunAfter(const Functor &cb, uint32_t delay) {
+        _base_loop.RunInLoop(std::bind(&TcpServer::RunAfterInLoop, this, cb, delay));
+    }
     void Start() {
         LOG_INFO("Server starting...");
         _pool.CreateDependedLoops();
