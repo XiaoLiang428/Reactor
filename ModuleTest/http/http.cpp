@@ -37,7 +37,7 @@ int main()
 {
     LOG_DEBUG("thread_id = %ld", std::this_thread::get_id());
     HttpServer server(8400);
-    server.SetThreadCount(1);
+    server.SetThreadCount(5);
     server.SetBaseDir(DEFAULT_BASE_DIR);
     server.Get("/get", Hello);
     server.Post("/post", Post);

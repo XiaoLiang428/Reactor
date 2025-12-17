@@ -1148,7 +1148,6 @@ private:
             conn->EnableInactiveRelease(_timeout);
         _conns.emplace(conn_id, conn);
         conn->Established();
-        //_conns.insert(make_pair(conn_id, conn));
     }
     void RemoveConnectionInLoop(const PTRConnection &conn) {
         LOG_DEBUG("RemoveConnectionInLoop called");
